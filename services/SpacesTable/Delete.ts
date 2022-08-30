@@ -1,5 +1,6 @@
 import { DynamoDB } from "aws-sdk";
 import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from "aws-lambda";
+import { MissingFieldError } from "../Shared/InputValidator";
 
 
 
@@ -15,17 +16,27 @@ async function handler(event:APIGatewayProxyEvent, context: Context): Promise<AP
         body: 'Hello from DynamoDB'
     }
     
-    const spaceId = event.queryStringParameters?.[PRIMARY_KEY]
+    try {
+        const spaceId = event.queryStringParameters?.[PRIMARY_KEY]
 
-    if (spaceId) {
-        const deleteResult = await dbClient.delete({
-            TableName: TABLE_NAME,
-            Key: {
-                [PRIMARY_KEY]: spaceId
-            }
-        }).promise();
-        result.body = JSON.stringify(deleteResult);
-    }  
+        if (spaceId) {
+            const deleteResult = await dbClient.delete({
+                TableName: TABLE_NAME,
+                Key: {
+                    [PRIMARY_KEY]: spaceId
+                }
+            }).promise();
+            result.body = JSON.stringify(deleteResult);
+        }  
+        
+    } catch (error) {
+        if (error instanceof MissingFieldError) {
+            result.statusCode = 403;
+            result.body = error.message;
+        } else {
+            result.statusCode = 500;
+        }
+    }
 
     return result
 }
